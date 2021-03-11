@@ -78,10 +78,6 @@ NSTimeInterval const EXUpdatesDefaultTimeoutInterval = 60;
 - (NSURLRequest *)createManifestRequestWithURL:(NSURL *)url extraHeaders:(nullable NSDictionary *)extraHeaders
 {
   NSURLRequestCachePolicy cachePolicy = _sessionConfiguration ? _sessionConfiguration.requestCachePolicy : NSURLRequestUseProtocolCachePolicy;
-  if (_config.usesLegacyManifest) {
-    // legacy manifest loads should ignore cache-control headers from the server and always load remotely
-    cachePolicy = NSURLRequestReloadIgnoringLocalCacheData;
-  }
 
   NSMutableURLRequest *request = [NSMutableURLRequest requestWithURL:url cachePolicy:cachePolicy timeoutInterval:EXUpdatesDefaultTimeoutInterval];
   [self _setManifestHTTPHeaderFields:request withExtraHeaders:extraHeaders];
@@ -109,6 +105,9 @@ NSTimeInterval const EXUpdatesDefaultTimeoutInterval = 60;
     NSHTTPURLResponse *httpResponse = (NSHTTPURLResponse *)response;
     NSDictionary *headerDictionary = [httpResponse allHeaderFields];
     id headerSignature = headerDictionary[@"expo-manifest-signature"];
+    id expoProtocolVersion = headerDictionary[@"expo-protocol-version"];
+    BOOL usesLegacyManifest = expoProtocolVersion == nil;
+    [self.config setUsesLegacyManifest:&usesLegacyManifest];
     
     NSError *err;
     id parsedJson = [NSJSONSerialization JSONObjectWithData:data options:kNilOptions error:&err];

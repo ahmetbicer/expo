@@ -31,7 +31,6 @@ static NSString * const EXUpdatesConfigLaunchWaitMsKey = @"EXUpdatesLaunchWaitMs
 static NSString * const EXUpdatesConfigCheckOnLaunchKey = @"EXUpdatesCheckOnLaunch";
 static NSString * const EXUpdatesConfigSDKVersionKey = @"EXUpdatesSDKVersion";
 static NSString * const EXUpdatesConfigRuntimeVersionKey = @"EXUpdatesRuntimeVersion";
-static NSString * const EXUpdatesConfigUsesLegacyManifestKey = @"EXUpdatesUsesLegacyManifest";
 static NSString * const EXUpdatesConfigHasEmbeddedUpdateKey = @"EXUpdatesHasEmbeddedUpdate";
 
 static NSString * const EXUpdatesConfigAlwaysString = @"ALWAYS";
@@ -60,6 +59,11 @@ static NSString * const EXUpdatesConfigNeverString = @"NEVER";
   EXUpdatesConfig *updatesConfig = [[EXUpdatesConfig alloc] init];
   [updatesConfig loadConfigFromDictionary:config];
   return updatesConfig;
+}
+
+-(void)setUsesLegacyManifest:(BOOL)usesLegacyManifest
+{
+  _usesLegacyManifest = usesLegacyManifest;
 }
 
 - (void)loadConfigFromDictionary:(NSDictionary *)config
@@ -134,11 +138,6 @@ static NSString * const EXUpdatesConfigNeverString = @"NEVER";
   id runtimeVersion = config[EXUpdatesConfigRuntimeVersionKey];
   if (runtimeVersion && [runtimeVersion isKindOfClass:[NSString class]]) {
     _runtimeVersion = (NSString *)runtimeVersion;
-  }
-
-  id usesLegacyManifest = config[EXUpdatesConfigUsesLegacyManifestKey];
-  if (usesLegacyManifest && [usesLegacyManifest isKindOfClass:[NSNumber class]]) {
-    _usesLegacyManifest = [(NSNumber *)usesLegacyManifest boolValue];
   }
 
   id hasEmbeddedUpdate = config[EXUpdatesConfigHasEmbeddedUpdateKey];
