@@ -1,8 +1,8 @@
-import { useTheme } from '@react-navigation/native';
 import * as React from 'react';
 import { View, ScrollView } from 'react-native';
 
 import Colors from '../constants/Colors';
+import { useThemeName } from '../hooks/useThemeName';
 
 type ViewProps = View['props'];
 interface Props extends ViewProps {
@@ -19,11 +19,6 @@ interface StyledScrollViewProps extends ScrollViewProps {
 }
 
 type ThemedColors = keyof typeof Colors.light & keyof typeof Colors.dark;
-
-export function useThemeName(): string {
-  const theme = useTheme();
-  return theme.dark ? 'dark' : 'light';
-}
 
 function useThemeBackgroundColor(props: Props | StyledScrollViewProps, colorName: ThemedColors) {
   const themeName = useThemeName();
@@ -74,16 +69,26 @@ export const StyledView = (props: Props) => {
   );
 };
 
-type IconProps = {
-  component: React.ReactType;
-  name: string;
-  size: number;
-  color: string;
+export const MainView = (props: ViewProps) => {
+  return (
+    <StyledView
+      lightBackgroundColor={Colors.light.mainBackground}
+      darkBackgroundColor={Colors.dark.mainBackground}
+      lightBorderColor={Colors.light.border}
+      darkBorderColor={Colors.dark.border}
+      {...props}
+    />
+  );
 };
 
-export const StyledIcon = (props: IconProps) => {
-  const themeName = useThemeName();
-  const { component: Component, color, ...rest } = props;
-
-  return <Component {...rest} color={Colors[themeName]?.[color]} />;
+export const SecondaryView = (props: ViewProps) => {
+  return (
+    <StyledView
+      lightBackgroundColor={Colors.light.secondaryBackground}
+      darkBackgroundColor={Colors.dark.secondaryBackground}
+      lightBorderColor={Colors.light.border}
+      darkBorderColor={Colors.dark.border}
+      {...props}
+    />
+  );
 };

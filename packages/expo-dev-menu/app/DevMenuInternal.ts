@@ -140,3 +140,24 @@ export async function saveAsync(key: string, data: string): Promise<void> {
 export async function getAsync(key: string): Promise<string | null> {
   return await DevMenu.getAsync(key);
 }
+
+export async function setSessionAsync(session: any | null): Promise<void> {
+  return await DevMenu.setSessionAsync(
+    session != null ? JSON.stringify(session) : null,
+    session?.sessionSecret
+  );
+}
+
+export async function restoreSessionAsync(): Promise<any> {
+  const data = await DevMenu.restoreSessionAsync();
+
+  if (!data) {
+    return null;
+  }
+
+  try {
+    return JSON.parse(data);
+  } catch (e) {
+    return null;
+  }
+}

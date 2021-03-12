@@ -16,9 +16,17 @@ import {
   RefreshControl,
 } from 'react-native';
 
-import { isDevMenuAvailable } from './DevMenu';
+import {
+  isDevMenuAvailable,
+  isLoggedAsync,
+  addUserLoginListener,
+  addUserLogoutListener,
+  getMyProjectsAsync,
+  getDevSessions,
+} from './DevMenu';
 import BottomTabs from './components/BottomTabs';
 import Button from './components/Button';
+import DevelopmentSessions from './components/DevelopmentSession';
 import ListItem from './components/ListItem';
 
 const DevLauncher = NativeModules.EXDevLauncherInternal;
@@ -43,20 +51,7 @@ const baseAddress = Platform.select({
   android: 'http://10.0.2.2',
 });
 const statusPage = 'status';
-const portsToCheck = [
-  8081,
-  19000,
-  19001,
-  19002,
-  19003,
-  19004,
-  19005,
-  19006,
-  19007,
-  19008,
-  19009,
-  19010,
-];
+const portsToCheck = [8081, 8082, 19000, 19001, 19002, 19003, 19004, 19005];
 
 const bottomContainerHeight = isDevMenuAvailable() ? 40 : 0;
 
@@ -65,10 +60,11 @@ const App = ({ isSimulator }) => {
   const [textInputUrl, setTextInputUrl] = useState('');
   const [recentlyOpenedApps, setRecentlyOpenedApps] = useState({});
   const [pendingDeepLink, setPendingDeepLink] = useState<string | null>(null);
-  const [refreshing, setRefreshing] = React.useState(false);
-  const [localPackagers, setLocalPackagers] = useState([]);
+  const [refreshing, setRefreshing] = useState(false);
+  const [isUserSingIn, setIsUserSingIn] = useState(false);
+  const [developmentSession, setDevelopmentSession] = useState([]);
 
-  const detectLocalPackagers = async setLocalPackagers => {
+  const detectLocalPackagers = async () => {
     if (!isSimulator) {
       return [];
     }
@@ -79,21 +75,53 @@ const App = ({ isSimulator }) => {
         const address = `${baseAddress}:${port}`;
         const { status } = await fetch(`${address}/${statusPage}`);
         if (status === 200) {
-          onlinePackagers.push(address);
+          onlinePackagers.push({
+            description: address,
+            url: address,
+            source: 'desktop',
+          });
         }
       } catch (e) {}
     }
 
-    setLocalPackagers(onlinePackagers);
+    return onlinePackagers;
   };
 
-  const onRefresh = React.useCallback(() => {
+  const detectDevelopmentSessions = async () => {
+    if (!isUserSingIn) {
+      const localPackagers = await detectLocalPackagers();
+      if (!isUserSingIn) {
+        setDevelopmentSession(localPackagers);
+      }
+      return;
+    }
+
+    const data = await getDevSessions();
+    const { data: projects } = JSON.parse(data);
+    setDevelopmentSession(projects);
+  };
+
+  const onRefresh = React.useCallback(async () => {
     setRefreshing(true);
-    detectLocalPackagers(setLocalPackagers);
+    await detectDevelopmentSessions();
     setRefreshing(false);
-  }, []);
+  }, [isUserSingIn]);
 
   useEffect(() => {
+    detectDevelopmentSessions();
+  }, [isUserSingIn]);
+
+  useEffect(() => {
+    const userChangedState = async isSignIn => {
+      setIsUserSingIn(isSignIn);
+    };
+
+    isLoggedAsync().then(isLogged => {
+      if (isLogged) {
+        userChangedState(true);
+      }
+    });
+
     const getPendingDeepLink = async () => {
       setPendingDeepLink(await DevLauncher.getPendingDeepLink());
     };
@@ -101,6 +129,9 @@ const App = ({ isSimulator }) => {
     const getRecentlyOpenedApps = async () => {
       setRecentlyOpenedApps(await DevLauncher.getRecentlyOpenedApps());
     };
+
+    const userLoginListener = addUserLoginListener(() => userChangedState(true));
+    const userLogoutListener = addUserLogoutListener(() => userChangedState(false));
 
     const onNewDeepLinkListener = new NativeEventEmitter(DevLauncher).addListener(
       ON_NEW_DEEP_LINK_EVENT,
@@ -111,10 +142,12 @@ const App = ({ isSimulator }) => {
 
     getRecentlyOpenedApps();
     getPendingDeepLink();
-    detectLocalPackagers(setLocalPackagers);
+    detectDevelopmentSessions();
 
     return () => {
       onNewDeepLinkListener.remove();
+      userLoginListener.remove();
+      userLogoutListener.remove();
     };
   }, []);
 
@@ -169,6 +202,7 @@ const App = ({ isSimulator }) => {
             </View>
           )}
           <View style={styles.homeContainer}>
+            <Text style={styles.headingText}>You are {isUserSingIn ? 'login' : 'logout'}</Text>
             <Text style={styles.headingText}>Connect to a development server</Text>
             <Text style={styles.infoText}>Start a local server with:</Text>
             <View style={styles.codeBox}>
@@ -200,14 +234,11 @@ const App = ({ isSimulator }) => {
               onChangeText={text => setTextInputUrl(text)}
             />
             <Button onPress={onPressGoToUrl} label="Connect to URL" />
-            {localPackagers.length > 0 && (
-              <>
-                <Text style={[styles.infoText, { marginTop: 12 }]}>Running packagers:</Text>
-                {localPackagers.map(url => (
-                  <ListItem key={url} title={url} onPress={() => loadAppFromUrl(url, setLoading)} />
-                ))}
-              </>
-            )}
+            <DevelopmentSessions
+              projects={developmentSession}
+              projectLoader={project => loadAppFromUrl(project.url, setLoading)}
+            />
+
             {recentlyProjects.length > 0 && (
               <>
                 <Text style={[styles.infoText, { marginTop: 12 }]}>Recently opened projects:</Text>
